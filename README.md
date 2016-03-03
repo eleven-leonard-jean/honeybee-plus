@@ -1,2 +1,3 @@
 # honeybee-core
-Core functionalities of Honeybee with no geometry library dependencies
+
+#### [API Documentation](http://ladybug-analysis-tools.github.io/honeybee-core/doc/)
