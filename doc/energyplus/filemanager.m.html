@@ -3,8 +3,8 @@
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 
-    <title>honeybee.radiance.geometry API documentation</title>
-    <meta name="description" content="A collection of methods for writing Radiance geometry file." />
+    <title>honeybee.energyplus.filemanager API documentation</title>
+    <meta name="description" content="A collection of auxiliary funtions for working with radiance files and objects." />
 
   <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,300' rel='stylesheet' type='text/css'>
 
@@ -988,7 +988,8 @@ table {
     <li class="set"><h3><a href="#header-functions">Functions</a></h3>
       
   <ul>
-    <li class="mono"><a href="#honeybee.radiance.geometry.polygon">polygon</a></li>
+    <li class="mono"><a href="#honeybee.energyplus.filemanager.getEnergyPlusObjectsFromFile">getEnergyPlusObjectsFromFile</a></li>
+    <li class="mono"><a href="#honeybee.energyplus.filemanager.getEnergyPlusObjectsFromString">getEnergyPlusObjectsFromString</a></li>
   </ul>
 
     </li>
@@ -1005,55 +1006,89 @@ table {
 
 
   <header id="section-intro">
-  <h1 class="title"><span class="name">honeybee.radiance.geometry</span> module</h1>
-  <p>A collection of methods for writing Radiance geometry file.</p>
+  <h1 class="title"><span class="name">honeybee.energyplus.filemanager</span> module</h1>
+  <p>A collection of auxiliary funtions for working with radiance files and objects.</p>
   
-  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-honeybee.radiance.geometry', this);">Show source &equiv;</a></p>
-  <div id="source-honeybee.radiance.geometry" class="source">
-    <pre><code>"""A collection of methods for writing Radiance geometry file."""
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-honeybee.energyplus.filemanager', this);">Show source &equiv;</a></p>
+  <div id="source-honeybee.energyplus.filemanager" class="source">
+    <pre><code>"""A collection of auxiliary funtions for working with radiance files and objects."""
+import re
+import os
 
 
-def __normName(name):
-    """Replace white spaces in names."""
-    return name.replace(" ", "_")
-
-
-# TODO: Change polygon to a class
-def polygon(name, materialName, pts, minimal=False):
-    """return a string for radiance polygon.
+def getEnergyPlusObjectsFromString(epFileString):
+    """
+    Parse idf file string.
 
     Args:
-        name:Surface name. Surface name can't have white space.
-        materialName: Name of the radiance material. Material name can't have white space.
-        pts: List of points as (x, y, z). Number of points can't be less than 3.
-        minimal: Set to True to get the definition in as single line.
+        epFileString: EnergyPlus data as a single string. The string can be multiline
+
+    Returns:
+        A list of strings. Each string represents a differnt Rdiance Object
     """
-    __baseString = "%s polygon %s\n0\n0\n%d\n%s"
+    _epObjects = {"zone": {}, "buildingsurface:detailed": {},
+                  "fenestrationsurface:detailed": {}, "material": {},
+                  "windowmaterial": {}, "construction": {}, "schedule": {},
+                  "scheduletypelimits": {}, "globalgeometryrules": {},
+                  "shading:site:detailed": {}, "shading:building:detailed": {},
+                  "shading:zone:detailed": {}}
 
-    assert len(pts) >= 3, \
-        "Insufficient number of points for %s: %d" % (name, len(pts))
+    rawEPObjects = re.findall(r'.[^;]*;.*[^$]', "\n" + epFileString + "\n", re.MULTILINE)
 
-    try:
-        ptCoordinates = "\n".join([" ".join(map(str, (pt.X, pt.Y, pt.Z))) for pt in pts])
-    except AttributeError:
-        ptCoordinates = "\n".join([" ".join(map(str, pt)) for pt in pts])
+    for obj in rawEPObjects:
+        # seperate each segment of EnergyPlus object
+        segments = [seg.split("!")[0] for seg in re.findall(r'.+[,|;]', obj, re.MULTILINE)]
 
-    definition = __baseString % (
-        __normName(materialName),
-        __normName(name),
-        3 * len(pts),
-        ptCoordinates
-    )
+        # clean the objects and join them into a single comma separated string
+        segments = "".join(segments).replace("\t", "").replace(" ", "")[:-1].split(",")
 
-    return definition.replace("\t", "").replace("\n", " ") if minimal else definition
+        # first segment is the type and the second one is the name
+        # for now we're just collecting zones, surfaces, materials, constructions
+        # and schedules. We should later use EnergyPlus.idd file to collect all
+        # the objects.
+        try:
+            _epObjects[segments[0].lower()][segments[1]] = segments
+        except KeyError:
+            pass
+
+    return _epObjects
+
+
+def getEnergyPlusObjectsFromFile(epFilePath):
+    """
+    Parse EnergyPlus file and return a list of radiance objects as separate strings.
+
+    TODO: Create a class for each EnergyPlus object and return Python objects
+    instead of strings
+
+    Args:
+        epFilePath: Path to EnergyPlus file
+
+    Returns:
+        A list of strings. Each string represents a differnt Rdiance Object
+
+    Usage:
+        getEnergyPlusObjectsFromFile(r"C:/ladybug/21MAR900/energySimulation/21MAR900.rad")
+    """
+    if not os.path.isfile(epFilePath):
+        raise ValueError("Can't find %s." % epFilePath)
+
+    with open(epFilePath, "r") as epFile:
+        return getEnergyPlusObjectsFromString("".join(epFile.readlines()))
 
 
 if __name__ == "__main__":
-    # test code
-    pts = ((10, 0, 0), (20, 0, 0), (20, 10, 0), (10, 10, 0))
-    # notice white spaces are replaced by _
-    print polygon("surface 001", "white material", pts, True)
-    print polygon("surface 002", "white material", pts)
+    objects = getEnergyPlusObjectsFromFile(r"C:\EnergyPlusV8-3-0\ExampleFiles\5ZoneWaterCooled_GasFiredSteamHumidifier.idf")
+
+    # if the geometry rules is relative then all the points should be added
+    # to X, Y, Z of zone origin
+    print objects['globalgeometryrules'].values()
+    for z in objects['zone']:
+        print "zone:", objects['zone'][z]
+    for s in objects['buildingsurface:detailed']:
+        print "buildingsurface:", s
+    for w in objects['fenestrationsurface:detailed']:
+        print "fenestrationsurface:", w
 </code></pre>
   </div>
 
@@ -1064,49 +1099,105 @@ if __name__ == "__main__":
     <h2 class="section-title" id="header-functions">Functions</h2>
       
   <div class="item">
-    <div class="name def" id="honeybee.radiance.geometry.polygon">
-    <p>def <span class="ident">polygon</span>(</p><p>name, materialName, pts, minimal=False)</p>
+    <div class="name def" id="honeybee.energyplus.filemanager.getEnergyPlusObjectsFromFile">
+    <p>def <span class="ident">getEnergyPlusObjectsFromFile</span>(</p><p>epFilePath)</p>
     </div>
     
 
     
   
-    <div class="desc"><p>return a string for radiance polygon.</p>
+    <div class="desc"><p>Parse EnergyPlus file and return a list of radiance objects as separate strings.</p>
+<p>TODO: Create a class for each EnergyPlus object and return Python objects
+instead of strings</p>
 <p>Args:
-    name:Surface name. Surface name can't have white space.
-    materialName: Name of the radiance material. Material name can't have white space.
-    pts: List of points as (x, y, z). Number of points can't be less than 3.
-    minimal: Set to True to get the definition in as single line.</p></div>
+    epFilePath: Path to EnergyPlus file</p>
+<p>Returns:
+    A list of strings. Each string represents a differnt Rdiance Object</p>
+<p>Usage:
+    getEnergyPlusObjectsFromFile(r"C:/ladybug/21MAR900/energySimulation/21MAR900.rad")</p></div>
   <div class="source_cont">
-  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-honeybee.radiance.geometry.polygon', this);">Show source &equiv;</a></p>
-  <div id="source-honeybee.radiance.geometry.polygon" class="source">
-    <pre><code>def polygon(name, materialName, pts, minimal=False):
-    """return a string for radiance polygon.
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-honeybee.energyplus.filemanager.getEnergyPlusObjectsFromFile', this);">Show source &equiv;</a></p>
+  <div id="source-honeybee.energyplus.filemanager.getEnergyPlusObjectsFromFile" class="source">
+    <pre><code>def getEnergyPlusObjectsFromFile(epFilePath):
+    """
+    Parse EnergyPlus file and return a list of radiance objects as separate strings.
+
+    TODO: Create a class for each EnergyPlus object and return Python objects
+    instead of strings
 
     Args:
-        name:Surface name. Surface name can't have white space.
-        materialName: Name of the radiance material. Material name can't have white space.
-        pts: List of points as (x, y, z). Number of points can't be less than 3.
-        minimal: Set to True to get the definition in as single line.
+        epFilePath: Path to EnergyPlus file
+
+    Returns:
+        A list of strings. Each string represents a differnt Rdiance Object
+
+    Usage:
+        getEnergyPlusObjectsFromFile(r"C:/ladybug/21MAR900/energySimulation/21MAR900.rad")
     """
-    __baseString = "%s polygon %s\n0\n0\n%d\n%s"
+    if not os.path.isfile(epFilePath):
+        raise ValueError("Can't find %s." % epFilePath)
 
-    assert len(pts) >= 3, \
-        "Insufficient number of points for %s: %d" % (name, len(pts))
+    with open(epFilePath, "r") as epFile:
+        return getEnergyPlusObjectsFromString("".join(epFile.readlines()))
+</code></pre>
+  </div>
+</div>
 
-    try:
-        ptCoordinates = "\n".join([" ".join(map(str, (pt.X, pt.Y, pt.Z))) for pt in pts])
-    except AttributeError:
-        ptCoordinates = "\n".join([" ".join(map(str, pt)) for pt in pts])
+  </div>
+  
+      
+  <div class="item">
+    <div class="name def" id="honeybee.energyplus.filemanager.getEnergyPlusObjectsFromString">
+    <p>def <span class="ident">getEnergyPlusObjectsFromString</span>(</p><p>epFileString)</p>
+    </div>
+    
 
-    definition = __baseString % (
-        __normName(materialName),
-        __normName(name),
-        3 * len(pts),
-        ptCoordinates
-    )
+    
+  
+    <div class="desc"><p>Parse idf file string.</p>
+<p>Args:
+    epFileString: EnergyPlus data as a single string. The string can be multiline</p>
+<p>Returns:
+    A list of strings. Each string represents a differnt Rdiance Object</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-honeybee.energyplus.filemanager.getEnergyPlusObjectsFromString', this);">Show source &equiv;</a></p>
+  <div id="source-honeybee.energyplus.filemanager.getEnergyPlusObjectsFromString" class="source">
+    <pre><code>def getEnergyPlusObjectsFromString(epFileString):
+    """
+    Parse idf file string.
 
-    return definition.replace("\t", "").replace("\n", " ") if minimal else definition
+    Args:
+        epFileString: EnergyPlus data as a single string. The string can be multiline
+
+    Returns:
+        A list of strings. Each string represents a differnt Rdiance Object
+    """
+    _epObjects = {"zone": {}, "buildingsurface:detailed": {},
+                  "fenestrationsurface:detailed": {}, "material": {},
+                  "windowmaterial": {}, "construction": {}, "schedule": {},
+                  "scheduletypelimits": {}, "globalgeometryrules": {},
+                  "shading:site:detailed": {}, "shading:building:detailed": {},
+                  "shading:zone:detailed": {}}
+
+    rawEPObjects = re.findall(r'.[^;]*;.*[^$]', "\n" + epFileString + "\n", re.MULTILINE)
+
+    for obj in rawEPObjects:
+        # seperate each segment of EnergyPlus object
+        segments = [seg.split("!")[0] for seg in re.findall(r'.+[,|;]', obj, re.MULTILINE)]
+
+        # clean the objects and join them into a single comma separated string
+        segments = "".join(segments).replace("\t", "").replace(" ", "")[:-1].split(",")
+
+        # first segment is the type and the second one is the name
+        # for now we're just collecting zones, surfaces, materials, constructions
+        # and schedules. We should later use EnergyPlus.idd file to collect all
+        # the objects.
+        try:
+            _epObjects[segments[0].lower()][segments[1]] = segments
+        except KeyError:
+            pass
+
+    return _epObjects
 </code></pre>
   </div>
 </div>

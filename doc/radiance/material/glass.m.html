@@ -997,6 +997,7 @@ table {
   <ul>
     <li class="mono"><a href="#honeybee.radiance.material.glass.GlassMaterial.getTransmissivity">getTransmissivity</a></li>
     <li class="mono"><a href="#honeybee.radiance.material.glass.GlassMaterial.__init__">__init__</a></li>
+    <li class="mono"><a href="#honeybee.radiance.material.glass.GlassMaterial.ToString">ToString</a></li>
     <li class="mono"><a href="#honeybee.radiance.material.glass.GlassMaterial.bySingleTransValue">bySingleTransValue</a></li>
     <li class="mono"><a href="#honeybee.radiance.material.glass.GlassMaterial.toRadString">toRadString</a></li>
   </ul>
@@ -1077,6 +1078,15 @@ class GlassMaterial(RadianceMaterial):
         """
         return cls(name, rTransmittance=rgbTransmittance, gTransmittance=rgbTransmittance,
                    bTransmittance=rgbTransmittance, refraction=1.52, modifier="void")
+
+    @property
+    def isGlassMaterial(self):
+        """Indicate if this object has glass Material.
+
+        This property will be used to separate the glass surfaces in a separate
+        file than the opaque surfaces.
+        """
+        return True
 
     @property
     def rTransmittance(self):
@@ -1209,6 +1219,15 @@ if __name__ == "__main__":
         """
         return cls(name, rTransmittance=rgbTransmittance, gTransmittance=rgbTransmittance,
                    bTransmittance=rgbTransmittance, refraction=1.52, modifier="void")
+
+    @property
+    def isGlassMaterial(self):
+        """Indicate if this object has glass Material.
+
+        This property will be used to separate the glass surfaces in a separate
+        file than the opaque surfaces.
+        """
+        return True
 
     @property
     def rTransmittance(self):
@@ -1359,6 +1378,19 @@ def getTransmissivity(transmittance):
 
             </div>
             <div class="item">
+            <p id="honeybee.radiance.material.glass.GlassMaterial.isGlassMaterial" class="name">var <span class="ident">isGlassMaterial</span></p>
+            
+
+            
+  
+    <div class="desc"><p>Indicate if this object has glass Material.</p>
+<p>This property will be used to separate the glass surfaces in a separate
+file than the opaque surfaces.</p></div>
+  <div class="source_cont">
+</div>
+
+            </div>
+            <div class="item">
             <p id="honeybee.radiance.material.glass.GlassMaterial.isRadianceMaterial" class="name">var <span class="ident">isRadianceMaterial</span></p>
             
 
@@ -1471,6 +1503,28 @@ def getTransmissivity(transmittance):
     """Transmittance for blue. The value should be between 0 and 1 (Default: 0)."""
     self.refractionIndex = refraction
     """Index of refraction. 1.52 for glass and 1.4 for ETFE (Default: 1.52)."""
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="honeybee.radiance.material.glass.GlassMaterial.ToString">
+    <p>def <span class="ident">ToString</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Overwrite .NET ToString.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-honeybee.radiance.material.glass.GlassMaterial.ToString', this);">Show source &equiv;</a></p>
+  <div id="source-honeybee.radiance.material.glass.GlassMaterial.ToString" class="source">
+    <pre><code>def ToString(self):
+    """Overwrite .NET ToString."""
+    return self.__repr__()
 </code></pre>
   </div>
 </div>
