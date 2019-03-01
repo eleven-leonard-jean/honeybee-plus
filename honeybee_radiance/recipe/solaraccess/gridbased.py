@@ -8,7 +8,7 @@ from ...command.rcontrib import Rcontrib
 from ...analysisgrid import AnalysisGrid
 from ...sky.analemma import Analemma
 from ....futil import write_to_file
-from ....vectormath.euclid import Vector3
+from ladybug.euclid import Vector3
 from ....hbsurface import HBSurface
 
 from ladybug.sunpath import Sunpath

@@ -1,6 +1,6 @@
 """A light version of test points."""
 from __future__ import division
-from ..vectormath.euclid import Point3, Vector3
+from ladybug.euclid import Point3, Vector3
 
 
 class AnalysisPointLite(object):

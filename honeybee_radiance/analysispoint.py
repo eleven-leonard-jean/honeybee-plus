@@ -1,6 +1,6 @@
 # """Honeybee PointGroup and TestPointGroup."""
 from __future__ import division
-from ..vectormath.euclid import Point3, Vector3
+from ladybug.euclid import Point3, Vector3
 from ..schedule import Schedule
 from collections import defaultdict, OrderedDict
 from itertools import izip
